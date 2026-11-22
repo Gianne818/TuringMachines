@@ -14,7 +14,9 @@ interface ActionSummary {
   moves: Set<Direction>;
   singleWrite: string | null;
   singleMove: Direction | null;
+  allPreserve: boolean;
   mutates: boolean;
+  swapLabel: string | null;
 }
 
 function summarizeRules(rules: TransitionRule[]): ActionSummary {
@@ -25,7 +27,9 @@ function summarizeRules(rules: TransitionRule[]): ActionSummary {
       moves: new Set(),
       singleWrite: null,
       singleMove: null,
+      allPreserve: true,
       mutates: false,
+      swapLabel: null,
     };
   }
 
@@ -60,8 +64,6 @@ function summarizeRules(rules: TransitionRule[]): ActionSummary {
     text = singleMove && singleMove !== 'S' ? `${singleWrite} ${singleMove}` : singleWrite;
   } else if (swapLabel !== null) {
     text = singleMove && singleMove !== 'S' ? `${swapLabel} ${singleMove}` : swapLabel;
-  } else if (singleMove && singleMove !== 'S') {
-    text = singleMove;
   }
 
   return {
@@ -70,47 +72,57 @@ function summarizeRules(rules: TransitionRule[]): ActionSummary {
     moves,
     singleWrite,
     singleMove,
+    allPreserve,
     mutates,
+    swapLabel,
   };
+}
+
+interface NodePresentation {
+  label: string;
+  kind: SchemaNode['kind'];
+  variant?: 'accept' | 'reject';
+  nodeSummary?: ActionSummary;
 }
 
 function deriveNodePresentation(
   state: StateNode,
   machine: TuringMachineDefinition,
   haltSet: Set<string>,
-): {
-  label: string;
-  kind: SchemaNode['kind'];
-  variant?: 'accept' | 'reject';
-} {
+): NodePresentation {
   const isStart = state.id === machine.startState;
   const isHalt = haltSet.has(state.id) || Boolean(state.isHalt);
   const outgoing = machine.transitions.filter((t) => t.from === state.id);
   const outgoingSelf = outgoing.filter((t) => t.to === state.id);
-  const outgoingNonSelf = outgoing.filter((t) => t.to !== state.id);
-  const incoming = machine.transitions.filter((t) => t.to === state.id);
-  const incomingNonSelf = incoming.filter((t) => t.from !== state.id);
 
   if (isStart) {
     const primary = outgoingSelf.length > 0 ? outgoingSelf : outgoing;
     const summary = summarizeRules(primary);
     const label = summary.text ? `> ${summary.text}` : '> Step';
     let variant: 'accept' | 'reject' | undefined;
+    const incoming = machine.transitions.filter((t) => t.to === state.id);
     if (isHalt) {
       const inSum = summarizeRules(incoming);
       if (inSum.writes.size === 1 && inSum.writes.has('Ⓨ')) variant = 'accept';
       else if (inSum.writes.size === 1 && inSum.writes.has('Ⓝ')) variant = 'reject';
     }
-    return { label, kind: 'start-action', variant };
+    return {
+      label,
+      kind: 'start-action',
+      variant,
+      nodeSummary: summary.text ? summary : undefined,
+    };
   }
 
   if (isHalt) {
+    const incoming = machine.transitions.filter((t) => t.to === state.id);
     const inSum = summarizeRules(incoming);
     if (inSum.writes.size === 1 && inSum.writes.has('Ⓨ')) {
       return {
         label: inSum.text ?? 'Ⓨ',
         kind: 'halt',
         variant: 'accept',
+        nodeSummary: inSum.text ? inSum : undefined,
       };
     }
     if (inSum.writes.size === 1 && inSum.writes.has('Ⓝ')) {
@@ -118,6 +130,7 @@ function deriveNodePresentation(
         label: inSum.text ?? 'Ⓝ',
         kind: 'halt',
         variant: 'reject',
+        nodeSummary: inSum.text ? inSum : undefined,
       };
     }
     if (inSum.writes.has('Ⓨ') && inSum.writes.has('Ⓝ')) {
@@ -126,32 +139,41 @@ function deriveNodePresentation(
     return {
       label: inSum.text ?? 'Halt',
       kind: 'halt',
+      nodeSummary: inSum.text ? inSum : undefined,
     };
   }
 
   if (outgoingSelf.length > 0) {
     const selfSum = summarizeRules(outgoingSelf);
+    const fallbackMove = selfSum.singleMove && selfSum.singleMove !== 'S' ? selfSum.singleMove : null;
+    const label = selfSum.text ?? fallbackMove ?? 'Scan';
+    const capturedSummary = selfSum.text
+      ? selfSum
+      : fallbackMove
+        ? {
+            text: fallbackMove,
+            writes: new Set<string>(),
+            moves: new Set<Direction>([fallbackMove]),
+            singleWrite: null,
+            singleMove: fallbackMove,
+            allPreserve: true,
+            mutates: false,
+            swapLabel: null,
+          }
+        : undefined;
     return {
-      label: selfSum.text ?? 'Scan',
+      label,
       kind: selfSum.mutates ? 'write' : 'move',
+      nodeSummary: capturedSummary,
     };
   }
 
-  const nonHaltOut = outgoingNonSelf.filter((r) => !haltSet.has(r.to));
-  const outSum = summarizeRules(nonHaltOut.length > 0 ? nonHaltOut : outgoingNonSelf);
-  const inSum = summarizeRules(incomingNonSelf);
-
+  const outSum = summarizeRules(outgoing);
   if (outSum.text && outSum.mutates) {
-    return { label: outSum.text, kind: 'write' };
-  }
-  if (inSum.text && inSum.mutates) {
-    return { label: inSum.text, kind: 'write' };
+    return { label: outSum.text, kind: 'write', nodeSummary: outSum };
   }
   if (outSum.text) {
-    return { label: outSum.text, kind: 'move' };
-  }
-  if (inSum.text) {
-    return { label: inSum.text, kind: 'move' };
+    return { label: outSum.text, kind: 'move', nodeSummary: outSum };
   }
 
   const distinctTargets = new Set(outgoing.map((r) => r.to));
@@ -322,6 +344,47 @@ export function deriveLpSchemaFromTm(machine: TuringMachineDefinition): SchemaDi
     ),
   );
 
+  const draftMap = new Map(nodeDrafts.map((d) => [d.id, d]));
+
+  const actionsMatchSummary = (
+    edgeSum: ActionSummary,
+    nodeSum: ActionSummary | undefined,
+  ): boolean => {
+    if (!nodeSum || !nodeSum.text || !edgeSum.singleMove) return false;
+    if (edgeSum.allPreserve) {
+      return nodeSum.allPreserve && edgeSum.singleMove === nodeSum.singleMove;
+    }
+    if (edgeSum.singleWrite !== null) {
+      return (
+        edgeSum.singleWrite === nodeSum.singleWrite &&
+        edgeSum.singleMove === nodeSum.singleMove
+      );
+    }
+    if (edgeSum.swapLabel !== null) {
+      return (
+        edgeSum.swapLabel === nodeSum.swapLabel &&
+        edgeSum.singleMove === nodeSum.singleMove
+      );
+    }
+    return false;
+  };
+
+  const formatPerRuleActions = (
+    rules: TransitionRule[],
+    capturedMove: Direction | null | undefined,
+  ): string => {
+    const parts = rules.slice(0, 3).map((r) => {
+      const effWrite = r.write === '*' ? r.read : r.write;
+      const mut = effWrite !== r.read;
+      const diffMove = capturedMove ? r.move !== capturedMove : true;
+      if (mut && diffMove) return `${r.read}→${effWrite}, ${r.move}`;
+      if (mut) return `${r.read}→${effWrite}`;
+      if (diffMove) return `${r.read}, ${r.move}`;
+      return r.read;
+    });
+    return rules.length > 3 ? `${parts.slice(0, 2).join(' · ')}…` : parts.join(' · ');
+  };
+
   const edges: SchemaEdge[] = [];
   let edgeIdx = 0;
 
@@ -349,26 +412,67 @@ export function deriveLpSchemaFromTm(machine: TuringMachineDefinition): SchemaDi
       readLabel = `${reads.slice(0, 2).join(', ')}…`;
     }
 
+    const fromDraft = draftMap.get(from);
     const toNode = nodeMap.get(to)!;
-    let label: string | undefined = readLabel;
-
-    if (from !== to && toNode.kind === 'halt' && toNode.label === 'Halt') {
-      const sum = summarizeRules(rules);
-      if (sum.singleWrite === 'Ⓨ' || sum.singleWrite === 'Ⓝ') {
-        label = `${readLabel} → ${sum.singleWrite}`;
-      }
-    }
+    const toDraft = draftMap.get(to);
+    const edgeSum = summarizeRules(rules);
 
     if (from === to) {
+      let selfLabel = readLabel;
+      if (!actionsMatchSummary(edgeSum, fromDraft?.nodeSummary)) {
+        if (edgeSum.allPreserve && edgeSum.singleMove) {
+          selfLabel = `${readLabel}, ${edgeSum.singleMove}`;
+        } else if (edgeSum.singleWrite !== null && edgeSum.singleMove) {
+          const sameMove = edgeSum.singleMove === fromDraft?.nodeSummary?.singleMove;
+          selfLabel = sameMove
+            ? `${readLabel} → ${edgeSum.singleWrite}`
+            : `${readLabel} → ${edgeSum.singleWrite}, ${edgeSum.singleMove}`;
+        } else {
+          selfLabel = formatPerRuleActions(rules, fromDraft?.nodeSummary?.singleMove);
+        }
+      }
       edges.push({
         id: `e_${edgeIdx++}`,
         from,
         to,
-        label,
+        label: selfLabel,
         isSelfLoop: true,
         loopAngleDeg: -90,
       });
       continue;
+    }
+
+    let label: string = readLabel;
+    if (toNode.kind === 'halt') {
+      if (!actionsMatchSummary(edgeSum, toDraft?.nodeSummary)) {
+        if (edgeSum.singleWrite === 'Ⓨ' || edgeSum.singleWrite === 'Ⓝ') {
+          const moveCapturedOrStay =
+            edgeSum.singleMove === 'S' || edgeSum.singleMove === toDraft?.nodeSummary?.singleMove;
+          label = moveCapturedOrStay
+            ? `${readLabel} → ${edgeSum.singleWrite}`
+            : `${readLabel} → ${edgeSum.singleWrite}, ${edgeSum.singleMove}`;
+        } else if (edgeSum.allPreserve && edgeSum.singleMove) {
+          label = `${readLabel}, ${edgeSum.singleMove}`;
+        } else if (edgeSum.singleWrite !== null && edgeSum.singleMove) {
+          label =
+            edgeSum.singleMove === 'S'
+              ? `${readLabel} → ${edgeSum.singleWrite}`
+              : `${readLabel} → ${edgeSum.singleWrite}, ${edgeSum.singleMove}`;
+        } else {
+          label = formatPerRuleActions(rules, toDraft?.nodeSummary?.singleMove);
+        }
+      }
+    } else if (!actionsMatchSummary(edgeSum, fromDraft?.nodeSummary)) {
+      if (edgeSum.allPreserve && edgeSum.singleMove) {
+        label = `${readLabel}, ${edgeSum.singleMove}`;
+      } else if (edgeSum.singleWrite !== null && edgeSum.singleMove) {
+        const sameMove = edgeSum.singleMove === fromDraft?.nodeSummary?.singleMove;
+        label = sameMove
+          ? `${readLabel} → ${edgeSum.singleWrite}`
+          : `${readLabel} → ${edgeSum.singleWrite}, ${edgeSum.singleMove}`;
+      } else {
+        label = formatPerRuleActions(rules, fromDraft?.nodeSummary?.singleMove);
+      }
     }
 
     const hasReverse = grouped.has(`${to}\0${from}`);

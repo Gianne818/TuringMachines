@@ -181,7 +181,6 @@ function buildPipelineTm(spec: DirectTmSpec): CompileResult {
     id: `e_end`,
     from: `p_${steps.length - 1}`,
     to: 'p_halt',
-    label: '#',
   });
 
   for (let i = 0; i < compiledBlocks.length; i += 1) {
@@ -271,24 +270,25 @@ function buildParametricAnBnCn(rawSymbols: string): CompileResult {
   const allWork = [x, y, z, mx, my, mz];
 
   const rawStates: StateNode[] = [
-    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_rew' },
-    { id: 'q_chk', label: 'Non-empty?', x: 0, y: 0, schemaNodeId: 'n_rew' },
-    { id: 'q_rewInit', label: 'To start ←', x: 0, y: 0, schemaNodeId: 'n_rew' },
-    { id: 'q_findA', label: `Find ${x}`, x: 0, y: 0, schemaNodeId: 'n_markA' },
-    { id: 'q_findB', label: `Find ${y}`, x: 0, y: 0, schemaNodeId: 'n_markB' },
-    { id: 'q_findC', label: `Find ${z}`, x: 0, y: 0, schemaNodeId: 'n_markC' },
-    { id: 'q_rew', label: 'Rewind ←', x: 0, y: 0, schemaNodeId: 'n_markC' },
+    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_start' },
+    { id: 'q_chk', label: 'Non-empty?', x: 0, y: 0, schemaNodeId: 'n_start' },
+    { id: 'q_rewInit', label: 'To start ←', x: 0, y: 0, schemaNodeId: 'n_rewInit' },
+    { id: 'q_findA', label: `Find ${x}`, x: 0, y: 0, schemaNodeId: 'n_findA' },
+    { id: 'q_findB', label: `Find ${y}`, x: 0, y: 0, schemaNodeId: 'n_findB' },
+    { id: 'q_findC', label: `Find ${z}`, x: 0, y: 0, schemaNodeId: 'n_findC' },
+    { id: 'q_rew', label: 'Rewind ←', x: 0, y: 0, schemaNodeId: 'n_rew' },
     { id: 'q_doneChk', label: `Only ${my},${mz}?`, x: 0, y: 0, schemaNodeId: 'n_check' },
     { id: 'q_wipeAcc', label: 'Clean (Ⓨ)', x: 0, y: 0, schemaNodeId: 'n_clean_acc' },
-    { id: 'q_goEndRej', label: 'To end →', x: 0, y: 0, schemaNodeId: 'n_clean_rej' },
+    { id: 'q_goEndRej', label: 'To end →', x: 0, y: 0, schemaNodeId: 'n_goEndRej' },
     { id: 'q_wipeRej', label: 'Clean (Ⓝ)', x: 0, y: 0, schemaNodeId: 'n_clean_rej' },
     { id: 'qH_acc', label: 'Accept Ⓨ', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_accept' },
     { id: 'qH_rej', label: 'Reject Ⓝ', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_reject' },
+    { id: 'qH_rej_emp', label: 'Reject Ⓝ', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_reject_emp' },
   ];
 
   const transitions: TransitionRule[] = [
     makeRule('csl1', 'q0', '#', 'q_chk', '#', 'L'),
-    makeRule('csl2', 'q_chk', '#', 'qH_rej', 'Ⓝ', 'R'),
+    makeRule('csl2', 'q_chk', '#', 'qH_rej_emp', 'Ⓝ', 'R'),
     makeRule('csl3', 'q_chk', x, 'q_rewInit', x, 'L'),
     makeRule('csl4', 'q_chk', y, 'q_rewInit', y, 'L'),
     makeRule('csl5', 'q_chk', z, 'q_rewInit', z, 'L'),
@@ -304,7 +304,7 @@ function buildParametricAnBnCn(rawSymbols: string): CompileResult {
     makeRule('csl13', 'q_findA', y, 'q_goEndRej', mx, 'R'),
     makeRule('csl14', 'q_findA', z, 'q_goEndRej', mx, 'R'),
     makeRule('csl15', 'q_findA', mz, 'q_goEndRej', mx, 'R'),
-    makeRule('csl16', 'q_findA', '#', 'q_wipeRej', '#', 'L'),
+    makeRule('csl16', 'q_findA', '#', 'q_goEndRej', '#', 'S'),
 
     makeRule('csl17', 'q_findB', x, 'q_findB', x, 'R'),
     makeRule('csl18', 'q_findB', my, 'q_findB', my, 'R'),
@@ -312,7 +312,7 @@ function buildParametricAnBnCn(rawSymbols: string): CompileResult {
     makeRule('csl20', 'q_findB', z, 'q_goEndRej', mx, 'R'),
     makeRule('csl21', 'q_findB', mz, 'q_goEndRej', mx, 'R'),
     makeRule('csl22', 'q_findB', mx, 'q_goEndRej', mx, 'R'),
-    makeRule('csl23', 'q_findB', '#', 'q_wipeRej', '#', 'L'),
+    makeRule('csl23', 'q_findB', '#', 'q_goEndRej', '#', 'S'),
 
     makeRule('csl24', 'q_findC', y, 'q_findC', y, 'R'),
     makeRule('csl25', 'q_findC', mz, 'q_findC', mz, 'R'),
@@ -320,7 +320,7 @@ function buildParametricAnBnCn(rawSymbols: string): CompileResult {
     makeRule('csl27', 'q_findC', x, 'q_goEndRej', mx, 'R'),
     makeRule('csl28', 'q_findC', mx, 'q_goEndRej', mx, 'R'),
     makeRule('csl29', 'q_findC', my, 'q_goEndRej', mx, 'R'),
-    makeRule('csl30', 'q_findC', '#', 'q_wipeRej', '#', 'L'),
+    makeRule('csl30', 'q_findC', '#', 'q_goEndRej', '#', 'S'),
 
     ...allWork.map((s, idx) => makeRule(`csl_rew_${idx}`, 'q_rew', s, 'q_rew', s, 'L')),
     makeRule('csl31', 'q_rew', '#', 'q_findA', '#', 'R'),
@@ -359,37 +359,52 @@ function buildParametricAnBnCn(rawSymbols: string): CompileResult {
       tapeAlphabet: ['#', x, y, z, mx, my, mz, 'Ⓨ', 'Ⓝ'],
       initialHead: 'trailing-blank',
       startState: 'q0',
-      haltStates: ['qH_acc', 'qH_rej'],
+      haltStates: ['qH_acc', 'qH_rej', 'qH_rej_emp'],
       states: autoLayoutStates(rawStates, transitions, 'q0', { colGap: 185, rowGap: 110 }),
       transitions,
       schemaDiagram: {
         title: `${x}ⁿ${y}ⁿ${z}ⁿ Decider — L&P Schema`,
-        width: 760,
-        height: 430,
+        width: 1040,
+        height: 490,
         nodes: [
-          { id: 'n_rew', label: '> L_#', kind: 'start-action', builtinId: 'L_hash', x: 95, y: 130 },
-          { id: 'n_markA', label: `${mx} R`, kind: 'write', x: 280, y: 130 },
-          { id: 'n_markB', label: `${my} R`, kind: 'write', x: 470, y: 130 },
-          { id: 'n_markC', label: `${mz} L_#`, kind: 'builtin', builtinId: 'L_hash', x: 660, y: 130 },
-          { id: 'n_check', label: 'R_#', kind: 'builtin', builtinId: 'R_hash', x: 280, y: 260 },
-          { id: 'n_clean_acc', label: 'E', kind: 'builtin', builtinId: 'E', x: 280, y: 370 },
-          { id: 'n_accept', label: 'Ⓨ R', kind: 'halt', variant: 'accept', x: 470, y: 370 },
-          { id: 'n_clean_rej', label: 'E', kind: 'builtin', builtinId: 'E', x: 470, y: 260 },
-          { id: 'n_reject', label: 'Ⓝ R', kind: 'halt', variant: 'reject', x: 660, y: 260 },
+          { id: 'n_start', label: '> L', kind: 'start-action', x: 80, y: 145 },
+          { id: 'n_rewInit', label: 'L_#', kind: 'builtin', builtinId: 'L_hash', x: 215, y: 145 },
+          { id: 'n_findA', label: 'R', kind: 'move', x: 345, y: 145 },
+          { id: 'n_wA', label: mx, kind: 'write', x: 460, y: 145 },
+          { id: 'n_findB', label: 'R', kind: 'move', x: 575, y: 145 },
+          { id: 'n_wB', label: my, kind: 'write', x: 690, y: 145 },
+          { id: 'n_findC', label: 'R', kind: 'move', x: 805, y: 145 },
+          { id: 'n_rew', label: `${mz} L_#`, kind: 'builtin', builtinId: 'L_hash', x: 945, y: 145 },
+          { id: 'n_reject_emp', label: 'Ⓝ R', kind: 'halt', variant: 'reject', x: 80, y: 295 },
+          { id: 'n_check', label: 'R', kind: 'move', x: 345, y: 295 },
+          { id: 'n_goEndRej', label: 'R_#', kind: 'builtin', builtinId: 'R_hash', x: 635, y: 295 },
+          { id: 'n_clean_rej', label: 'E', kind: 'builtin', builtinId: 'E', x: 795, y: 295 },
+          { id: 'n_reject', label: 'Ⓝ R', kind: 'halt', variant: 'reject', x: 945, y: 295 },
+          { id: 'n_clean_acc', label: 'E', kind: 'builtin', builtinId: 'E', x: 345, y: 415 },
+          { id: 'n_accept', label: 'Ⓨ R', kind: 'halt', variant: 'accept', x: 525, y: 415 },
         ],
         edges: [
-          { id: 'e_rew', from: 'n_rew', to: 'n_markA', label: 'R' },
-          { id: 'e_emp', from: 'n_rew', to: 'n_reject', label: '#' },
-          { id: 'e_ab', from: 'n_markA', to: 'n_markB', label: x },
-          { id: 'e_bc', from: 'n_markB', to: 'n_markC', label: y },
-          { id: 'e_loop', from: 'n_markC', to: 'n_markA', label: z, curveOffset: -66 },
-          { id: 'e_chk', from: 'n_markA', to: 'n_check', label: my },
-          { id: 'e_badA', from: 'n_markA', to: 'n_clean_rej', label: '≠' },
-          { id: 'e_badB', from: 'n_markB', to: 'n_clean_rej', label: '≠' },
-          { id: 'e_badC', from: 'n_markC', to: 'n_clean_rej', label: '≠' },
+          { id: 'e_init', from: 'n_start', to: 'n_rewInit', label: `${x}, ${y}, ${z}` },
+          { id: 'e_emp', from: 'n_start', to: 'n_reject_emp', label: '#' },
+          { id: 'e_rewInit', from: 'n_rewInit', to: 'n_findA', label: '' },
+          { id: 'e_loopA', from: 'n_findA', to: 'n_findA', label: mx, isSelfLoop: true, loopAngleDeg: 135 },
+          { id: 'e_ax', from: 'n_findA', to: 'n_wA', label: x },
+          { id: 'e_wA', from: 'n_wA', to: 'n_findB', label: '' },
+          { id: 'e_loopB', from: 'n_findB', to: 'n_findB', label: `${x}, ${my}`, isSelfLoop: true, loopAngleDeg: -90 },
+          { id: 'e_by', from: 'n_findB', to: 'n_wB', label: y },
+          { id: 'e_wB', from: 'n_wB', to: 'n_findC', label: '' },
+          { id: 'e_loopC', from: 'n_findC', to: 'n_findC', label: `${y}, ${mz}`, isSelfLoop: true, loopAngleDeg: -90 },
+          { id: 'e_cz', from: 'n_findC', to: 'n_rew', label: z },
+          { id: 'e_loop', from: 'n_rew', to: 'n_findA', label: '#', curveOffset: -115 },
+          { id: 'e_chk', from: 'n_findA', to: 'n_check', label: my },
+          { id: 'e_chkLoop', from: 'n_check', to: 'n_check', label: `${my}, ${mz}`, isSelfLoop: true, loopAngleDeg: 180 },
           { id: 'e_cacc', from: 'n_check', to: 'n_clean_acc', label: '#' },
-          { id: 'e_crej', from: 'n_check', to: 'n_clean_rej', label: '≠' },
           { id: 'e_acc', from: 'n_clean_acc', to: 'n_accept', label: '#' },
+          { id: 'e_badA', from: 'n_findA', to: 'n_goEndRej', label: '≠' },
+          { id: 'e_badB', from: 'n_findB', to: 'n_goEndRej', label: '≠' },
+          { id: 'e_badC', from: 'n_findC', to: 'n_goEndRej', label: '≠' },
+          { id: 'e_crej', from: 'n_check', to: 'n_goEndRej', label: '≠' },
+          { id: 'e_wipeRej', from: 'n_goEndRej', to: 'n_clean_rej', label: '#' },
           { id: 'e_rej', from: 'n_clean_rej', to: 'n_reject', label: '#' },
         ],
       },
@@ -418,8 +433,8 @@ function buildParametricReverse(rawSymbols: string): CompileResult {
     { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_pick' },
     { id: 'q_pick', label: 'Pick sym ←', x: 0, y: 0, schemaNodeId: 'n_pick' },
     ...sigma.flatMap((s) => [
-      { id: `q_cIn_${s}`, label: `Carry ${s} →`, x: 0, y: 0, schemaNodeId: 'n_carry' },
-      { id: `q_cOut_${s}`, label: `Write ${s} →`, x: 0, y: 0, schemaNodeId: 'n_carry' },
+      { id: `q_cIn_${s}`, label: `Carry ${s} →`, x: 0, y: 0, schemaNodeId: 'n_cIn' },
+      { id: `q_cOut_${s}`, label: `Write ${s} →`, x: 0, y: 0, schemaNodeId: 'n_cOut' },
     ]),
     { id: 'q_retOut', label: 'Back out ←', x: 0, y: 0, schemaNodeId: 'n_ret' },
     { id: 'q_wipeX', label: `Wipe ${marker} →`, x: 0, y: 0, schemaNodeId: 'n_wipe' },
@@ -481,20 +496,26 @@ function buildParametricReverse(rawSymbols: string): CompileResult {
       transitions,
       schemaDiagram: {
         title: `String Reversal (wᴿ) — L&P Schema`,
-        width: 640,
-        height: 335,
+        width: 720,
+        height: 495,
         nodes: [
-          { id: 'n_pick', label: '> L', kind: 'start-action', x: 105, y: 135 },
-          { id: 'n_carry', label: 'R_# R_# σ', kind: 'builtin', builtinId: 'R_hash', x: 315, y: 135 },
-          { id: 'n_ret', label: 'L_#', kind: 'builtin', builtinId: 'L_hash', x: 525, y: 135 },
-          { id: 'n_wipe', label: '# R', kind: 'write', x: 105, y: 265 },
-          { id: 'n_end', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 315, y: 265 },
+          { id: 'n_pick', label: '> L', kind: 'start-action', x: 105, y: 145 },
+          { id: 'n_cIn', label: `${marker} R_#`, kind: 'builtin', builtinId: 'R_hash', x: 275, y: 145 },
+          { id: 'n_cOut', label: 'R_# σ', kind: 'builtin', builtinId: 'R_hash', x: 455, y: 145 },
+          { id: 'n_ret', label: 'L_#', kind: 'builtin', builtinId: 'L_hash', x: 625, y: 145 },
+          { id: 'n_wipe', label: 'R', kind: 'move', x: 105, y: 295 },
+          { id: 'n_wipe_hash', label: '#', kind: 'write', x: 275, y: 295 },
+          { id: 'n_end', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 105, y: 420 },
         ],
         edges: [
-          { id: 'e_pick', from: 'n_pick', to: 'n_carry', label: `σ → ${marker}` },
-          { id: 'e_ret', from: 'n_carry', to: 'n_ret', label: 'σ' },
-          { id: 'e_loop', from: 'n_ret', to: 'n_pick', label: '#', curveOffset: -66 },
+          { id: 'e_skipX', from: 'n_pick', to: 'n_pick', label: marker, isSelfLoop: true, loopAngleDeg: 50 },
+          { id: 'e_pick', from: 'n_pick', to: 'n_cIn', label: 'σ' },
+          { id: 'e_out', from: 'n_cIn', to: 'n_cOut', label: '' },
+          { id: 'e_ret', from: 'n_cOut', to: 'n_ret', label: '' },
+          { id: 'e_loop', from: 'n_ret', to: 'n_pick', label: '#', curveOffset: -90 },
           { id: 'e_done', from: 'n_pick', to: 'n_wipe', label: '#' },
+          { id: 'e_wipeX', from: 'n_wipe', to: 'n_wipe_hash', label: marker, curveOffset: -36 },
+          { id: 'e_wipeBack', from: 'n_wipe_hash', to: 'n_wipe', label: '', curveOffset: 36 },
           { id: 'e_end', from: 'n_wipe', to: 'n_end', label: '#' },
         ],
       },
@@ -519,24 +540,28 @@ function buildParametricCopyEq(rawSymbols: string): CompileResult {
   const allWork = [...sigma, markerX, markerS];
 
   const rawStates: StateNode[] = [
-    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_init' },
-    { id: 'q_chkW2', label: 'Check w₂', x: 0, y: 0, schemaNodeId: 'n_init' },
-    { id: 'q_w2E', label: 'w₂ empty', x: 0, y: 0, schemaNodeId: 'n_init' },
-    { id: 'q_rewW2', label: 'Rew w₂ ←', x: 0, y: 0, schemaNodeId: 'n_init' },
-    { id: 'q_chkW1', label: 'Check w₁', x: 0, y: 0, schemaNodeId: 'n_init' },
-    { id: 'q_rewW1', label: 'Rew w₁ ←', x: 0, y: 0, schemaNodeId: 'n_init' },
+    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_init1' },
+    { id: 'q_chkW2', label: 'Check w₂', x: 0, y: 0, schemaNodeId: 'n_init1' },
+    { id: 'q_w2E', label: 'w₂ empty', x: 0, y: 0, schemaNodeId: 'n_init1' },
+    { id: 'q_rewW2', label: 'Rew w₂ ←', x: 0, y: 0, schemaNodeId: 'n_init1' },
+    { id: 'q_chkW1', label: 'Check w₁', x: 0, y: 0, schemaNodeId: 'n_init2' },
+    { id: 'q_rewW1', label: 'Rew w₁ ←', x: 0, y: 0, schemaNodeId: 'n_init2' },
     { id: 'q_pick', label: 'Pick w₁', x: 0, y: 0, schemaNodeId: 'n_pick' },
     ...sigma.flatMap((s) => [
-      { id: `q_c_${s}`, label: `Carry ${s} →`, x: 0, y: 0, schemaNodeId: 'n_match' },
+      { id: `q_c_${s}`, label: `Carry ${s} →`, x: 0, y: 0, schemaNodeId: 'n_carry' },
       { id: `q_m_${s}`, label: `Match ${s}`, x: 0, y: 0, schemaNodeId: 'n_match' },
     ]),
     { id: 'q_back', label: 'Rewind ←', x: 0, y: 0, schemaNodeId: 'n_back' },
     { id: 'q_chkEnd', label: 'w₂ done?', x: 0, y: 0, schemaNodeId: 'n_chkEnd' },
     { id: 'q_wipeAcc', label: 'Clean (Ⓨ)', x: 0, y: 0, schemaNodeId: 'n_clean_acc' },
-    { id: 'q_goEndRej', label: 'To end →', x: 0, y: 0, schemaNodeId: 'n_clean_rej' },
+    { id: 'q_goEndRej_init', label: 'Init reject →', x: 0, y: 0, schemaNodeId: 'n_init_rej' },
+    { id: 'q_wipeRej_init', label: 'Clean (Ⓝ)', x: 0, y: 0, schemaNodeId: 'n_init_rej' },
+    { id: 'q_goEndRej', label: 'To end →', x: 0, y: 0, schemaNodeId: 'n_goEndRej' },
     { id: 'q_wipeRej', label: 'Clean (Ⓝ)', x: 0, y: 0, schemaNodeId: 'n_clean_rej' },
     { id: 'qH_acc', label: 'Accept Ⓨ', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_accept' },
+    { id: 'qH_acc_emp', label: 'Accept Ⓨ', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_acc_emp' },
     { id: 'qH_rej', label: 'Reject Ⓝ', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_reject' },
+    { id: 'qH_rej_init', label: 'Reject Ⓝ', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_rej_init' },
   ];
 
   const transitions: TransitionRule[] = [];
@@ -547,9 +572,9 @@ function buildParametricCopyEq(rawSymbols: string): CompileResult {
 
   add('q0', '#', 'q_chkW2', '#', 'L');
   add('q_chkW2', '#', 'q_w2E', '#', 'L');
-  add('q_w2E', '#', 'qH_acc', 'Ⓨ', 'R');
+  add('q_w2E', '#', 'qH_acc_emp', 'Ⓨ', 'R');
   add('q_rewW2', '#', 'q_chkW1', markerS, 'L');
-  add('q_chkW1', '#', 'q_goEndRej', '#', 'R');
+  add('q_chkW1', '#', 'q_goEndRej_init', '#', 'R');
   add('q_rewW1', '#', 'q_pick', '#', 'R');
 
   add('q_pick', markerX, 'q_pick', markerX, 'R');
@@ -557,7 +582,7 @@ function buildParametricCopyEq(rawSymbols: string): CompileResult {
 
   for (const s of sigma) {
     add('q_chkW2', s, 'q_rewW2', s, 'L');
-    add('q_w2E', s, 'q_wipeRej', '#', 'L');
+    add('q_w2E', s, 'q_wipeRej_init', '#', 'L');
     add('q_rewW2', s, 'q_rewW2', s, 'L');
     add('q_chkW1', s, 'q_rewW1', s, 'L');
     add('q_rewW1', s, 'q_rewW1', s, 'L');
@@ -570,17 +595,21 @@ function buildParametricCopyEq(rawSymbols: string): CompileResult {
     }
     add(`q_c_${s}`, markerS, `q_m_${s}`, markerS, 'R');
     add(`q_m_${s}`, markerX, `q_m_${s}`, markerX, 'R');
-    add(`q_m_${s}`, '#', 'q_wipeRej', '#', 'L');
+    add(`q_m_${s}`, '#', 'q_goEndRej', '#', 'S');
 
     add('q_chkEnd', s, 'q_goEndRej', markerX, 'R');
   }
 
   for (const s of allWork) {
     add('q_back', s, 'q_back', s, 'L');
+    add('q_goEndRej_init', s, 'q_goEndRej_init', markerX, 'R');
+    add('q_wipeRej_init', s, 'q_wipeRej_init', '#', 'L');
     add('q_goEndRej', s, 'q_goEndRej', markerX, 'R');
     add('q_wipeRej', s, 'q_wipeRej', '#', 'L');
   }
   add('q_back', '#', 'q_pick', '#', 'R');
+  add('q_goEndRej_init', '#', 'q_wipeRej_init', '#', 'L');
+  add('q_wipeRej_init', '#', 'qH_rej_init', 'Ⓝ', 'R');
   add('q_goEndRej', '#', 'q_wipeRej', '#', 'L');
   add('q_wipeRej', '#', 'qH_rej', 'Ⓝ', 'R');
 
@@ -608,37 +637,51 @@ function buildParametricCopyEq(rawSymbols: string): CompileResult {
       tapeAlphabet: ['#', ...allWork, 'Ⓨ', 'Ⓝ'],
       initialHead: 'trailing-blank',
       startState: 'q0',
-      haltStates: ['qH_acc', 'qH_rej'],
+      haltStates: ['qH_acc', 'qH_acc_emp', 'qH_rej', 'qH_rej_init'],
       states: autoLayoutStates(rawStates, transitions, 'q0', { colGap: 180, rowGap: 110 }),
       transitions,
       schemaDiagram: {
         title: `Copy-Equality (w#w) — L&P Schema`,
-        width: 775,
-        height: 430,
+        width: 980,
+        height: 495,
         nodes: [
-          { id: 'n_init', label: `> L_# ${markerS} L_#`, kind: 'start-action', builtinId: 'L_hash', x: 105, y: 125 },
-          { id: 'n_pick', label: 'R', kind: 'move', x: 295, y: 125 },
-          { id: 'n_match', label: 'R_# σ?', kind: 'builtin', builtinId: 'R_hash', x: 485, y: 125 },
-          { id: 'n_back', label: 'L_#', kind: 'builtin', builtinId: 'L_hash', x: 675, y: 125 },
-          { id: 'n_chkEnd', label: 'R', kind: 'move', x: 295, y: 250 },
-          { id: 'n_clean_acc', label: 'E', kind: 'builtin', builtinId: 'E', x: 295, y: 360 },
-          { id: 'n_accept', label: 'Ⓨ R', kind: 'halt', variant: 'accept', x: 105, y: 360 },
-          { id: 'n_clean_rej', label: 'E', kind: 'builtin', builtinId: 'E', x: 485, y: 250 },
-          { id: 'n_reject', label: 'Ⓝ R', kind: 'halt', variant: 'reject', x: 675, y: 250 },
+          { id: 'n_init1', label: `> L_# ${markerS}`, kind: 'start-action', builtinId: 'L_hash', x: 95, y: 145 },
+          { id: 'n_init2', label: 'L_#', kind: 'builtin', builtinId: 'L_hash', x: 245, y: 145 },
+          { id: 'n_pick', label: 'R', kind: 'move', x: 380, y: 145 },
+          { id: 'n_carry', label: `${markerX} R_${markerS}`, kind: 'write', x: 530, y: 145 },
+          { id: 'n_match', label: 'R', kind: 'move', x: 680, y: 145 },
+          { id: 'n_back', label: `${markerX} L_#`, kind: 'builtin', builtinId: 'L_hash', x: 840, y: 145 },
+          { id: 'n_acc_emp', label: 'Ⓨ R', kind: 'halt', variant: 'accept', x: 95, y: 295 },
+          { id: 'n_init_rej', label: 'R_# E', kind: 'builtin', builtinId: 'E', x: 235, y: 295 },
+          { id: 'n_rej_init', label: 'Ⓝ R', kind: 'halt', variant: 'reject', x: 235, y: 415 },
+          { id: 'n_chkEnd', label: 'R', kind: 'move', x: 380, y: 295 },
+          { id: 'n_clean_acc', label: 'E', kind: 'builtin', builtinId: 'E', x: 380, y: 415 },
+          { id: 'n_accept', label: 'Ⓨ R', kind: 'halt', variant: 'accept', x: 555, y: 415 },
+          { id: 'n_goEndRej', label: 'R_#', kind: 'builtin', builtinId: 'R_hash', x: 640, y: 295 },
+          { id: 'n_clean_rej', label: 'E', kind: 'builtin', builtinId: 'E', x: 775, y: 295 },
+          { id: 'n_reject', label: 'Ⓝ R', kind: 'halt', variant: 'reject', x: 905, y: 295 },
         ],
         edges: [
-          { id: 'e_init', from: 'n_init', to: 'n_pick', label: 'R' },
-          { id: 'e_emp_acc', from: 'n_init', to: 'n_accept', label: '###' },
-          { id: 'e_emp_rej', from: 'n_init', to: 'n_clean_rej', label: '#w / w#' },
-          { id: 'e_pm', from: 'n_pick', to: 'n_match', label: `σ → ${markerX}` },
-          { id: 'e_mb', from: 'n_match', to: 'n_back', label: 'σ = σ' },
-          { id: 'e_loop', from: 'n_back', to: 'n_pick', label: '#', curveOffset: -64 },
+          { id: 'e_i2', from: 'n_init1', to: 'n_init2', label: 'σ' },
+          { id: 'e_emp_acc', from: 'n_init1', to: 'n_acc_emp', label: '#' },
+          { id: 'e_emp_rej1', from: 'n_init1', to: 'n_init_rej', label: '≠' },
+          { id: 'e_emp_rej2', from: 'n_init2', to: 'n_init_rej', label: '#' },
+          { id: 'e_init_rej', from: 'n_init_rej', to: 'n_rej_init', label: '#' },
+          { id: 'e_start', from: 'n_init2', to: 'n_pick', label: 'σ' },
+          { id: 'e_pickLoop', from: 'n_pick', to: 'n_pick', label: markerX, isSelfLoop: true, loopAngleDeg: -135 },
+          { id: 'e_pm', from: 'n_pick', to: 'n_carry', label: 'σ' },
+          { id: 'e_cm', from: 'n_carry', to: 'n_match', label: markerS },
+          { id: 'e_mLoop', from: 'n_match', to: 'n_match', label: markerX, isSelfLoop: true, loopAngleDeg: -90 },
+          { id: 'e_mb', from: 'n_match', to: 'n_back', label: '=' },
+          { id: 'e_loop', from: 'n_back', to: 'n_pick', label: '#', curveOffset: -115 },
           { id: 'e_chk', from: 'n_pick', to: 'n_chkEnd', label: markerS },
-          { id: 'e_mis', from: 'n_match', to: 'n_clean_rej', label: '≠' },
-          { id: 'e_leftover', from: 'n_chkEnd', to: 'n_clean_rej', label: 'σ' },
+          { id: 'e_chkLoop', from: 'n_chkEnd', to: 'n_chkEnd', label: markerX, isSelfLoop: true, loopAngleDeg: 180 },
+          { id: 'e_mis', from: 'n_match', to: 'n_goEndRej', label: '≠, #' },
+          { id: 'e_leftover', from: 'n_chkEnd', to: 'n_goEndRej', label: 'σ' },
+          { id: 'e_wipeRej', from: 'n_goEndRej', to: 'n_clean_rej', label: '#' },
+          { id: 'e_rej', from: 'n_clean_rej', to: 'n_reject', label: '#' },
           { id: 'e_cacc', from: 'n_chkEnd', to: 'n_clean_acc', label: '#' },
           { id: 'e_acc', from: 'n_clean_acc', to: 'n_accept', label: '#' },
-          { id: 'e_rej', from: 'n_clean_rej', to: 'n_reject', label: '#' },
         ],
       },
       sampleInputs: [

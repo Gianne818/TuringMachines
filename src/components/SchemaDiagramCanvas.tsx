@@ -323,7 +323,10 @@ function getTopBracketGeometry(
 ) {
   const startX = from.x;
   const startY = from.y - fromMetrics.h / 2 - 4;
-  const endX = to.x;
+  const toHasUpLoop = upwardSelfLoopIds.has(to.id);
+  const endX = toHasUpLoop
+    ? to.x + Math.min(18, toMetrics.w / 2 - 4)
+    : to.x;
   const endY = to.y - toMetrics.h / 2 - 6;
   const minTop = Math.min(startY, endY);
   const curveMag = Math.abs(edge.curveOffset ?? 64);
@@ -339,11 +342,14 @@ function getTopBracketGeometry(
       n.x >= minSpanX &&
       n.x <= maxSpanX,
   );
+  const initialMinY = toHasUpLoop
+    ? Math.min(minTop, to.y - toMetrics.h / 2 - 58)
+    : minTop;
   const highestObstacleTop = obstacles.reduce((minY, n) => {
     const m = getMetrics(n);
     const overhead = upwardSelfLoopIds.has(n.id) ? 58 : 12;
     return Math.min(minY, n.y - m.h / 2 - overhead);
-  }, minTop);
+  }, initialMinY);
 
   const railY = Math.min(minTop - baseRise, highestObstacleTop - 22);
   const dx = Math.abs(startX - endX);

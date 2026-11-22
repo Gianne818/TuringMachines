@@ -774,6 +774,122 @@ describe('Language-to-TM Compiler Suite', () => {
       expect(ok.ok).toBe(true);
       if (ok.ok) expect(ok.machine.id).toBe('builtin-shift-left');
     });
+
+    it('synchronizes L&P schemas with execution traces across pipeline, anbncn, reverse, and copy-eq', () => {
+      // 1. Pipeline e_end edge must be unconditional (no spurious '#' label)
+      const pipeRes = compileDirectTm({
+        kind: 'direct-tm',
+        mode: 'pipeline',
+        pipeline: [
+          { id: '1', op: 'write', symbol: 'I' },
+          { id: '2', op: 'R' },
+        ],
+        symbols: 'I',
+      });
+      expect(pipeRes.ok).toBe(true);
+      if (pipeRes.ok) {
+        const endEdge = pipeRes.machine.schemaDiagram?.edges.find((e) => e.id === 'e_end');
+        expect(endEdge?.label).toBeUndefined();
+      }
+
+      // 2. x^n y^n z^n: explicit self-loops + separate R_# reject path + empty reject halt
+      const cslRes = compileDirectTm({
+        kind: 'direct-tm',
+        mode: 'anbncn',
+        pipeline: [],
+        symbols: 'a,b,c',
+      });
+      expect(cslRes.ok).toBe(true);
+      if (cslRes.ok) {
+        const selfLoops = cslRes.machine.schemaDiagram!.edges.filter((e) => e.isSelfLoop);
+        expect(selfLoops.map((e) => `${e.from}:${e.label}`)).toEqual(
+          expect.arrayContaining(['n_findA:X', 'n_findB:a, Y', 'n_findC:b, Z', 'n_check:Y, Z']),
+        );
+
+        const accTrace = assertRunsCanonical(cslRes.machine, '#aabbcc#', '#Ⓨ#', 'accept');
+        const accNodes = new Set(accTrace.steps.map((s) => s.activeSchemaNodeId));
+        expect(accNodes.has('n_rewInit')).toBe(true);
+        expect(accNodes.has('n_findA')).toBe(true);
+        expect(accNodes.has('n_findB')).toBe(true);
+        expect(accNodes.has('n_findC')).toBe(true);
+        expect(accNodes.has('n_rew')).toBe(true);
+        expect(accNodes.has('n_check')).toBe(true);
+        expect(accNodes.has('n_clean_acc')).toBe(true);
+        expect(accNodes.has('n_accept')).toBe(true);
+
+        const rejTrace = assertRunsCanonical(cslRes.machine, '#aabbc#', '#Ⓝ#', 'reject');
+        const rejNodes = new Set(rejTrace.steps.map((s) => s.activeSchemaNodeId));
+        expect(rejNodes.has('n_goEndRej')).toBe(true);
+        expect(rejNodes.has('n_clean_rej')).toBe(true);
+        expect(rejNodes.has('n_reject')).toBe(true);
+
+        const empTrace = assertRunsCanonical(cslRes.machine, '#', '#Ⓝ#', 'reject');
+        expect(empTrace.steps[empTrace.steps.length - 1].activeSchemaNodeId).toBe('n_reject_emp');
+      }
+
+      // 3. String Reversal: split n_cIn / n_cOut, X self-loop, and wipe loop
+      const revRes = compileDirectTm({
+        kind: 'direct-tm',
+        mode: 'reverse',
+        pipeline: [],
+        symbols: '0,1',
+      });
+      expect(revRes.ok).toBe(true);
+      if (revRes.ok) {
+        const selfLoops = revRes.machine.schemaDiagram!.edges.filter((e) => e.isSelfLoop);
+        expect(selfLoops.map((e) => `${e.from}:${e.label}`)).toContain('n_pick:X');
+        const revTrace = assertRunsCanonical(revRes.machine, '#1011#', '#1101#');
+        const revNodes = new Set(revTrace.steps.map((s) => s.activeSchemaNodeId));
+        expect(revNodes.has('n_cIn')).toBe(true);
+        expect(revNodes.has('n_cOut')).toBe(true);
+        expect(revNodes.has('n_ret')).toBe(true);
+        expect(revNodes.has('n_wipe')).toBe(true);
+        expect(revNodes.has('n_end')).toBe(true);
+      }
+
+      // 4. w#w Equality: explicit X self-loops on n_pick/n_match/n_chkEnd and R_S node
+      const eqRes = compileDirectTm({
+        kind: 'direct-tm',
+        mode: 'copy-eq',
+        pipeline: [],
+        symbols: '0,1',
+      });
+      expect(eqRes.ok).toBe(true);
+      if (eqRes.ok) {
+        const schema = eqRes.machine.schemaDiagram!;
+        const carryNode = schema.nodes.find((n) => n.id === 'n_carry');
+        expect(carryNode?.label).toBe('X R_Y');
+        expect(carryNode?.label).not.toContain('R_#');
+        const selfLoops = schema.edges.filter((e) => e.isSelfLoop);
+        expect(selfLoops.map((e) => `${e.from}:${e.label}`)).toEqual(
+          expect.arrayContaining(['n_pick:X', 'n_match:X', 'n_chkEnd:X']),
+        );
+
+        const eqAcc = assertRunsCanonical(eqRes.machine, '#101#101#', '#Ⓨ#', 'accept');
+        const eqAccNodes = new Set(eqAcc.steps.map((s) => s.activeSchemaNodeId));
+        expect(eqAccNodes.has('n_init1')).toBe(true);
+        expect(eqAccNodes.has('n_init2')).toBe(true);
+        expect(eqAccNodes.has('n_pick')).toBe(true);
+        expect(eqAccNodes.has('n_carry')).toBe(true);
+        expect(eqAccNodes.has('n_match')).toBe(true);
+        expect(eqAccNodes.has('n_back')).toBe(true);
+        expect(eqAccNodes.has('n_chkEnd')).toBe(true);
+        expect(eqAccNodes.has('n_clean_acc')).toBe(true);
+        expect(eqAccNodes.has('n_accept')).toBe(true);
+
+        const empEq = assertRunsCanonical(eqRes.machine, '###', '#Ⓨ#', 'accept');
+        expect(empEq.steps[empEq.steps.length - 1].activeSchemaNodeId).toBe('n_acc_emp');
+
+        const rejLeftEmp = assertRunsCanonical(eqRes.machine, '##10#', '#Ⓝ#', 'reject');
+        expect(rejLeftEmp.steps[rejLeftEmp.steps.length - 1].activeSchemaNodeId).toBe('n_rej_init');
+
+        const rejRightEmp = assertRunsCanonical(eqRes.machine, '#10##', '#Ⓝ#', 'reject');
+        expect(rejRightEmp.steps[rejRightEmp.steps.length - 1].activeSchemaNodeId).toBe('n_rej_init');
+
+        const rejShort = assertRunsCanonical(eqRes.machine, '#101#10#', '#Ⓝ#', 'reject');
+        expect(rejShort.steps[rejShort.steps.length - 1].activeSchemaNodeId).toBe('n_reject');
+      }
+    });
   });
 
   describe('7. L&P Schema Integrity, Built-ins, and deriveLpSchemaFromTm', () => {
@@ -879,6 +995,48 @@ describe('Language-to-TM Compiler Suite', () => {
       expect(q2SelfLoops[0].isSelfLoop).toBe(true);
       expect(q2SelfLoops[0].label).toContain('0');
       expect(q2SelfLoops[0].label).toContain('1');
+    });
+
+    it('annotates heterogeneous outgoing writes/moves on deriveLpSchemaFromTm without leaking incoming writes to non-halt states', () => {
+      const dsl = `
+        start: q0
+        halt: qH
+        q0, # -> q1, #, L
+        q1, 0 -> q2, X, R
+        q1, 1 -> q1, 1, L
+        q1, # -> qH, Ⓨ, R
+        q2, # -> qH, #, S
+      `;
+      const parsed = parseFromDSL(dsl, BUILTIN_BY_ID.L_hash);
+      expect(parsed.ok).toBe(true);
+
+      const machine: TuringMachineDefinition = {
+        ...BUILTIN_BY_ID.L_hash,
+        id: 'custom-hetero',
+        name: 'Heterogeneous Custom TM',
+        kind: 'decider',
+        startState: parsed.startState,
+        haltStates: parsed.haltStates,
+        states: parsed.states,
+        transitions: parsed.transitions,
+        tapeAlphabet: parsed.tapeAlphabet,
+        schemaDiagram: undefined,
+        isCustom: true,
+      };
+
+      const schema = deriveLpSchemaFromTm(machine);
+      // q2 only has `# -> qH, #, S`: it must NOT inherit `X R` from incoming edge `q1 -> q2`
+      const q2Node = schema.nodes.find((n) => n.id === 'q2');
+      expect(q2Node?.label).not.toContain('X');
+
+      // q1 self-loops preserving '1' moving 'L' -> node label 'L', so `q1 -> q2` ('X', 'R') must show both write and move
+      const q1ToQ2 = schema.edges.find((e) => e.from === 'q1' && e.to === 'q2');
+      expect(q1ToQ2?.label).toContain('X');
+      expect(q1ToQ2?.label).toContain('R');
+
+      // Mixed halt edges (`q1 -> qH` writes Ⓨ R while `q2 -> qH` writes # S) should annotate on edges
+      const q1ToHalt = schema.edges.find((e) => e.from === 'q1' && e.to === 'qH');
+      expect(q1ToHalt?.label).toContain('Ⓨ');
     });
   });
 });

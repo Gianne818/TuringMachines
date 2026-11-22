@@ -204,7 +204,7 @@ export function MachineEditorDialog({
       states,
       transitions: normalizedRules,
       tapeAlphabet: Array.from(tapeSet),
-      schemaDiagram: addedNewState ? undefined : machine.schemaDiagram,
+      schemaDiagram: undefined,
       isCustom: true,
     };
   };

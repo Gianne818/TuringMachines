@@ -1098,7 +1098,11 @@ export function LanguageComposer({
                             '#101#101#',
                           );
                         } else {
-                          onChangeSpec({ ...spec, mode: 'custom' });
+                          onChangeSpec({
+                            ...spec,
+                            mode: 'custom',
+                            customMachine: spec.customMachine ?? activeMachine,
+                          });
                         }
                       }}
                       className="pressable min-h-8 rounded-xl border px-3 py-1.5 text-xs font-semibold"
