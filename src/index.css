@@ -1,0 +1,404 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+  scroll-padding-top: 4.5rem;
+
+  /* Fallback tokens (light baseline) */
+  --bg-canvas-light: #f5f5f7;
+  --bg-canvas-dark: #0b1120;
+  --bg-surface-light: #ffffff;
+  --bg-surface-dark: #111827;
+  --bg-elevated-light: #f8fafc;
+  --bg-elevated-dark: #1e293b;
+  --bg-chrome-light: rgba(255, 255, 255, 0.78);
+  --bg-chrome-dark: rgba(17, 24, 39, 0.78);
+  --bg-chrome-solid-light: #ffffff;
+  --bg-chrome-solid-dark: #111827;
+
+  --border-subtle-light: rgba(15, 23, 42, 0.08);
+  --border-subtle-dark: rgba(248, 250, 252, 0.1);
+  --border-strong-light: rgba(15, 23, 42, 0.16);
+  --border-strong-dark: rgba(248, 250, 252, 0.2);
+
+  --ink-primary-light: #0f172a;
+  --ink-primary-dark: #f8fafc;
+  --ink-secondary-light: #475569;
+  --ink-secondary-dark: #cbd5e1;
+  --ink-muted-light: #64748b;
+  --ink-muted-dark: #94a3b8;
+
+  --accent-light: #0071e3;
+  --accent-dark: #38bdf8;
+  --accent-ink-light: #ffffff;
+  --accent-ink-dark: #082f49;
+  --accent-soft-light: rgba(0, 113, 227, 0.12);
+  --accent-soft-dark: rgba(56, 189, 248, 0.16);
+
+  --accept-light: #15803d;
+  --accept-dark: #22c55e;
+  --accept-soft-light: rgba(22, 163, 74, 0.12);
+  --accept-soft-dark: rgba(34, 197, 94, 0.16);
+
+  --reject-light: #dc2626;
+  --reject-dark: #f87171;
+  --reject-soft-light: rgba(220, 38, 38, 0.12);
+  --reject-soft-dark: rgba(248, 113, 113, 0.16);
+
+  --halt-light: #b45309;
+  --halt-dark: #fbbf24;
+  --halt-soft-light: rgba(217, 119, 6, 0.12);
+  --halt-soft-dark: rgba(251, 191, 36, 0.16);
+
+  --tape-cell-light: #ffffff;
+  --tape-cell-dark: #162033;
+  --tape-blank-light: #f1f5f9;
+  --tape-blank-dark: #0f172a;
+  --tape-active-light: #eff6ff;
+  --tape-active-dark: #0c2a44;
+
+  --dot-grid-light: rgba(15, 23, 42, 0.08);
+  --dot-grid-dark: rgba(148, 163, 184, 0.12);
+
+  --scrollbar-track-light: #eef2f6;
+  --scrollbar-track-dark: #0f172a;
+  --scrollbar-thumb-light: #94a3b8;
+  --scrollbar-thumb-dark: #475569;
+
+  /* Default resolved values (light) */
+  --bg-canvas: var(--bg-canvas-light);
+  --bg-surface: var(--bg-surface-light);
+  --bg-elevated: var(--bg-elevated-light);
+  --bg-chrome: var(--bg-chrome-light);
+  --bg-chrome-solid: var(--bg-chrome-solid-light);
+  --border-subtle: var(--border-subtle-light);
+  --border-strong: var(--border-strong-light);
+  --ink-primary: var(--ink-primary-light);
+  --ink-secondary: var(--ink-secondary-light);
+  --ink-muted: var(--ink-muted-light);
+  --accent: var(--accent-light);
+  --accent-ink: var(--accent-ink-light);
+  --accent-soft: var(--accent-soft-light);
+  --accept: var(--accept-light);
+  --accept-soft: var(--accept-soft-light);
+  --reject: var(--reject-light);
+  --reject-soft: var(--reject-soft-light);
+  --halt: var(--halt-light);
+  --halt-soft: var(--halt-soft-light);
+  --tape-cell: var(--tape-cell-light);
+  --tape-blank: var(--tape-blank-light);
+  --tape-active: var(--tape-active-light);
+  --dot-grid: var(--dot-grid-light);
+  --scrollbar-track: var(--scrollbar-track-light);
+  --scrollbar-thumb: var(--scrollbar-thumb-light);
+
+  @media (prefers-color-scheme: dark) {
+    --bg-canvas: var(--bg-canvas-dark);
+    --bg-surface: var(--bg-surface-dark);
+    --bg-elevated: var(--bg-elevated-dark);
+    --bg-chrome: var(--bg-chrome-dark);
+    --bg-chrome-solid: var(--bg-chrome-solid-dark);
+    --border-subtle: var(--border-subtle-dark);
+    --border-strong: var(--border-strong-dark);
+    --ink-primary: var(--ink-primary-dark);
+    --ink-secondary: var(--ink-secondary-dark);
+    --ink-muted: var(--ink-muted-dark);
+    --accent: var(--accent-dark);
+    --accent-ink: var(--accent-ink-dark);
+    --accent-soft: var(--accent-soft-dark);
+    --accept: var(--accept-dark);
+    --accept-soft: var(--accept-soft-dark);
+    --reject: var(--reject-dark);
+    --reject-soft: var(--reject-soft-dark);
+    --halt: var(--halt-dark);
+    --halt-soft: var(--halt-soft-dark);
+    --tape-cell: var(--tape-cell-dark);
+    --tape-blank: var(--tape-blank-dark);
+    --tape-active: var(--tape-active-dark);
+    --dot-grid: var(--dot-grid-dark);
+    --scrollbar-track: var(--scrollbar-track-dark);
+    --scrollbar-thumb: var(--scrollbar-thumb-dark);
+  }
+
+  @supports (color: light-dark(white, black)) {
+    --bg-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+    --bg-surface: light-dark(var(--bg-surface-light), var(--bg-surface-dark));
+    --bg-elevated: light-dark(var(--bg-elevated-light), var(--bg-elevated-dark));
+    --bg-chrome: light-dark(var(--bg-chrome-light), var(--bg-chrome-dark));
+    --bg-chrome-solid: light-dark(var(--bg-chrome-solid-light), var(--bg-chrome-solid-dark));
+    --border-subtle: light-dark(var(--border-subtle-light), var(--border-subtle-dark));
+    --border-strong: light-dark(var(--border-strong-light), var(--border-strong-dark));
+    --ink-primary: light-dark(var(--ink-primary-light), var(--ink-primary-dark));
+    --ink-secondary: light-dark(var(--ink-secondary-light), var(--ink-secondary-dark));
+    --ink-muted: light-dark(var(--ink-muted-light), var(--ink-muted-dark));
+    --accent: light-dark(var(--accent-light), var(--accent-dark));
+    --accent-ink: light-dark(var(--accent-ink-light), var(--accent-ink-dark));
+    --accent-soft: light-dark(var(--accent-soft-light), var(--accent-soft-dark));
+    --accept: light-dark(var(--accept-light), var(--accept-dark));
+    --accept-soft: light-dark(var(--accept-soft-light), var(--accept-soft-dark));
+    --reject: light-dark(var(--reject-light), var(--reject-dark));
+    --reject-soft: light-dark(var(--reject-soft-light), var(--reject-soft-dark));
+    --halt: light-dark(var(--halt-light), var(--halt-dark));
+    --halt-soft: light-dark(var(--halt-soft-light), var(--halt-soft-dark));
+    --tape-cell: light-dark(var(--tape-cell-light), var(--tape-cell-dark));
+    --tape-blank: light-dark(var(--tape-blank-light), var(--tape-blank-dark));
+    --tape-active: light-dark(var(--tape-active-light), var(--tape-active-dark));
+    --dot-grid: light-dark(var(--dot-grid-light), var(--dot-grid-dark));
+    --scrollbar-track: light-dark(var(--scrollbar-track-light), var(--scrollbar-track-dark));
+    --scrollbar-thumb: light-dark(var(--scrollbar-thumb-light), var(--scrollbar-thumb-dark));
+  }
+
+  &:has(> head > meta[name="color-scheme"][content="dark"]) {
+    color-scheme: dark;
+  }
+
+  &:has(> head > meta[name="color-scheme"][content="light"]) {
+    color-scheme: light;
+  }
+
+  accent-color: var(--accent);
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: var(--bg-canvas);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Interactive cursor and instant Apple pointer-down tactile feedback */
+button,
+[role="button"],
+summary,
+select {
+  cursor: pointer;
+}
+
+.pressable {
+  transition: transform 100ms ease-out, background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.pressable:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Visible accessible focus indicator */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Translucent floating chrome material */
+.glass-chrome {
+  background-color: var(--bg-chrome);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-chrome {
+    background-color: var(--bg-chrome-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Subtle engineering dot-grid background for the state diagram canvas */
+.diagram-grid {
+  background-color: var(--bg-surface);
+  background-image: radial-gradient(circle, var(--dot-grid) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Tabular numbers for step counters & coordinates */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Responsive trace table with sticky headers & @container mobile stacked cards */
+.trace-table-wrapper {
+  overflow: auto;
+  max-inline-size: 100%;
+  container-type: inline-size;
+}
+
+.trace-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.trace-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+}
+
+@container (width < 400px) {
+  .trace-table,
+  .trace-table thead,
+  .trace-table tbody,
+  .trace-table tr,
+  .trace-table th,
+  .trace-table td {
+    display: block;
+  }
+
+  .trace-table thead {
+    display: none;
+  }
+
+  .trace-table tbody tr {
+    margin-bottom: 0.625rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--bg-surface);
+  }
+
+  .trace-table tbody th {
+    padding: 0.25rem 0;
+    text-align: left;
+  }
+
+  .trace-table tbody td {
+    padding: 0.25rem 0;
+    border: none !important;
+  }
+
+  .trace-table tbody td[data-label]::before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+  }
+}
+
+/* Native <dialog> modal scroll containment & top-layer transitions */
+dialog:modal {
+  overscroll-behavior: contain;
+  margin: auto;
+  border: 1px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  color: var(--ink-primary);
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(2, 6, 23, 0);
+  backdrop-filter: blur(0px);
+  transition-property: background-color, backdrop-filter, display, overlay;
+  transition-duration: 0.25s;
+  transition-timing-function: ease-out;
+  transition-behavior: allow-discrete;
+}
+
+dialog {
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.25s;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-behavior: allow-discrete;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog {
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+:is(dialog[open]):where(:not([data-closing])) {
+  opacity: 1;
+
+  @starting-style {
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    transform: scale(1) translateY(0);
+
+    @starting-style {
+      transform: scale(0.96) translateY(8px);
+    }
+  }
+}
+
+:is(dialog[open]):where(:not([data-closing]))::backdrop {
+  background-color: rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(6px);
+
+  @starting-style {
+    background-color: rgba(2, 6, 23, 0);
+    backdrop-filter: blur(0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog,
+  dialog::backdrop {
+    transition-duration: 0.1s;
+  }
+
+  .pressable:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* High contrast adaptation */
+@media (prefers-contrast: more) {
+  .glass-chrome {
+    background-color: var(--bg-chrome-solid);
+    backdrop-filter: none;
+  }
+}
+
+/* Custom scrollbar fallback for older WebKit/Blink browsers */
+@supports not (scrollbar-color: auto) {
+  .custom-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .custom-scroll::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+  }
+  .custom-scroll::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+}
+
+/* Pulse animation for active SVG transition edge */
+@keyframes edge-dash-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.edge-pulse {
+  stroke-dasharray: 6 6;
+  animation: edge-dash-flow 0.7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-pulse {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
