@@ -318,7 +318,8 @@ function getTopBracketGeometry(
   fromMetrics: NodeMetrics,
   toMetrics: NodeMetrics,
   nodes: SchemaNode[],
-  selfLoopNodeIds: Set<string>,
+  upwardSelfLoopIds: Set<string>,
+  getMetrics: (node: SchemaNode) => NodeMetrics,
 ) {
   const startX = from.x;
   const startY = from.y - fromMetrics.h / 2 - 4;
@@ -326,25 +327,25 @@ function getTopBracketGeometry(
   const endY = to.y - toMetrics.h / 2 - 6;
   const minTop = Math.min(startY, endY);
   const curveMag = Math.abs(edge.curveOffset ?? 64);
-  let baseRise = Math.max(40, Math.min(72, curveMag * 0.78));
+  const baseRise = Math.max(40, Math.min(72, curveMag * 0.78));
 
-  // Clear any intermediate node self-loops on the same horizontal row
-  const minSpanX = Math.min(from.x, to.x);
-  const maxSpanX = Math.max(from.x, to.x);
-  const hasMidLoop = nodes.some(
+  // Clear any intermediate nodes (and their overhead self-loops) across the horizontal span
+  const minSpanX = Math.min(from.x, to.x) - 30;
+  const maxSpanX = Math.max(from.x, to.x) + 30;
+  const obstacles = nodes.filter(
     (n) =>
       n.id !== from.id &&
       n.id !== to.id &&
-      selfLoopNodeIds.has(n.id) &&
       n.x >= minSpanX &&
-      n.x <= maxSpanX &&
-      Math.abs(n.y - (from.y + to.y) / 2) <= 45,
+      n.x <= maxSpanX,
   );
-  if (hasMidLoop) {
-    baseRise = Math.max(baseRise, 74);
-  }
+  const highestObstacleTop = obstacles.reduce((minY, n) => {
+    const m = getMetrics(n);
+    const overhead = upwardSelfLoopIds.has(n.id) ? 58 : 12;
+    return Math.min(minY, n.y - m.h / 2 - overhead);
+  }, minTop);
 
-  const railY = minTop - baseRise;
+  const railY = Math.min(minTop - baseRise, highestObstacleTop - 22);
   const dx = Math.abs(startX - endX);
   const dy = minTop - railY;
   const r = Math.max(4, Math.min(14, dx / 2 - 2, dy - 4));
@@ -376,9 +377,13 @@ export function computeSchemaBounds(schema: SchemaDiagram): SchemaBounds {
     metricsMap.set(n.id, getNodeMetrics(n));
   }
 
-  const selfLoopNodeIds = new Set(
+  const upwardSelfLoopIds = new Set(
     schema.edges
-      .filter((e) => e.isSelfLoop || e.from === e.to)
+      .filter(
+        (e) =>
+          (e.isSelfLoop || e.from === e.to) &&
+          Math.sin(((e.loopAngleDeg ?? -90) * Math.PI) / 180) < -0.15,
+      )
       .map((e) => e.from),
   );
 
@@ -432,9 +437,10 @@ export function computeSchemaBounds(schema: SchemaDiagram): SchemaBounds {
         fromM,
         toM,
         schema.nodes,
-        selfLoopNodeIds,
+        upwardSelfLoopIds,
+        getNodeMetrics,
       );
-      includePoint(g.labelX, g.railY - 16);
+      includePoint(g.labelX, g.railY - 18);
       continue;
     }
 
@@ -554,9 +560,13 @@ export function SchemaDiagramCanvas({
       edgeMap.set(`${e.from}\0${e.to}`, e);
     }
   }
-  const selfLoopNodeIds = new Set(
+  const upwardSelfLoopIds = new Set(
     schema.edges
-      .filter((e) => e.isSelfLoop || e.from === e.to)
+      .filter(
+        (e) =>
+          (e.isSelfLoop || e.from === e.to) &&
+          Math.sin(((e.loopAngleDeg ?? -90) * Math.PI) / 180) < -0.15,
+      )
       .map((e) => e.from),
   );
 
@@ -695,7 +705,8 @@ export function SchemaDiagramCanvas({
             fromM,
             toM,
             schema.nodes,
-            selfLoopNodeIds,
+            upwardSelfLoopIds,
+            getNodeMetrics,
           );
           return (
             <g key={edge.id}>

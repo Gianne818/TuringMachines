@@ -1,6 +1,8 @@
 import { autoLayoutStates } from '../engine/layout';
 import type {
   SampleInput,
+  SchemaEdge,
+  SchemaNode,
   StateNode,
   TransitionRule,
   TuringMachineDefinition,
@@ -52,6 +54,62 @@ function evalGateWord(
   return out;
 }
 
+function buildCarrySchemaBranch(opts: {
+  prefix: 'c0' | 'c1';
+  seekY: number;
+  writeTopY: number;
+  writeBotY: number;
+  loopAngleDeg: number;
+  out0: string;
+  out1: string;
+  fromPickId: string;
+  pickLabel: string;
+  retId: string;
+}): { nodes: SchemaNode[]; edges: SchemaEdge[] } {
+  const seekId = `n_${opts.prefix}_seek`;
+  const loopId = `n_${opts.prefix}_L`;
+  const nodes: SchemaNode[] = [
+    { id: seekId, label: '# L_#', kind: 'builtin', builtinId: 'L_hash', x: 255, y: opts.seekY },
+    { id: loopId, label: 'L', kind: 'move', x: 390, y: opts.seekY },
+  ];
+  const edges: SchemaEdge[] = [
+    { id: `e_${opts.prefix}_pick`, from: opts.fromPickId, to: seekId, label: opts.pickLabel },
+    { id: `e_${opts.prefix}_toL`, from: seekId, to: loopId, label: '' },
+    {
+      id: `e_${opts.prefix}_ab`,
+      from: loopId,
+      to: loopId,
+      label: 'a, b',
+      isSelfLoop: true,
+      loopAngleDeg: opts.loopAngleDeg,
+    },
+  ];
+
+  if (opts.out0 === opts.out1) {
+    const wId = `n_${opts.prefix}_w`;
+    nodes.push({ id: wId, label: opts.out0, kind: 'write', x: 505, y: opts.seekY });
+    edges.push(
+      { id: `e_${opts.prefix}_w`, from: loopId, to: wId, label: '0, 1, #' },
+      { id: `e_${opts.prefix}_ret`, from: wId, to: opts.retId, label: '' },
+    );
+  } else {
+    const w0Id = `n_${opts.prefix}_w0`;
+    const w1Id = `n_${opts.prefix}_w1`;
+    nodes.push(
+      { id: w0Id, label: opts.out0, kind: 'write', x: 505, y: opts.writeTopY },
+      { id: w1Id, label: opts.out1, kind: 'write', x: 505, y: opts.writeBotY },
+    );
+    edges.push(
+      { id: `e_${opts.prefix}_w0`, from: loopId, to: w0Id, label: '0, #' },
+      { id: `e_${opts.prefix}_ret0`, from: w0Id, to: opts.retId, label: '' },
+      { id: `e_${opts.prefix}_w1`, from: loopId, to: w1Id, label: '1' },
+      { id: `e_${opts.prefix}_ret1`, from: w1Id, to: opts.retId, label: '' },
+    );
+  }
+
+  return { nodes, edges };
+}
+
 function buildTwoInputGate(
   op: TwoInputOp,
   table: [0 | 1, 0 | 1, 0 | 1, 0 | 1],
@@ -60,13 +118,13 @@ function buildTwoInputGate(
   const rawStates: StateNode[] = [
     { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_pickB' },
     { id: 'q_pickB', label: 'Pick B LSB', x: 0, y: 0, schemaNodeId: 'n_pickB' },
-    { id: 'q_toSep0', label: 'Carry 0 ←', x: 0, y: 0, schemaNodeId: 'n_carry0' },
-    { id: 'q_findA0', label: `A ${meta.symbol} 0`, x: 0, y: 0, schemaNodeId: 'n_carry0' },
-    { id: 'q_toSep1', label: 'Carry 1 ←', x: 0, y: 0, schemaNodeId: 'n_carry1' },
-    { id: 'q_findA1', label: `A ${meta.symbol} 1`, x: 0, y: 0, schemaNodeId: 'n_carry1' },
+    { id: 'q_toSep0', label: 'Carry 0 ←', x: 0, y: 0, schemaNodeId: 'n_c0_seek' },
+    { id: 'q_findA0', label: `A ${meta.symbol} 0`, x: 0, y: 0, schemaNodeId: 'n_c0_L' },
+    { id: 'q_toSep1', label: 'Carry 1 ←', x: 0, y: 0, schemaNodeId: 'n_c1_seek' },
+    { id: 'q_findA1', label: `A ${meta.symbol} 1`, x: 0, y: 0, schemaNodeId: 'n_c1_L' },
     { id: 'q_retSep', label: 'To sep →', x: 0, y: 0, schemaNodeId: 'n_ret' },
     { id: 'q_retEnd', label: 'To B end →', x: 0, y: 0, schemaNodeId: 'n_ret' },
-    { id: 'q_fin', label: 'Finalize ←', x: 0, y: 0, schemaNodeId: 'n_decode' },
+    { id: 'q_fin', label: 'Finalize ←', x: 0, y: 0, schemaNodeId: 'n_dec_L' },
     { id: 'q_end', label: 'To End →', x: 0, y: 0, schemaNodeId: 'n_halt' },
     { id: 'qH', label: 'Halt', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_halt' },
   ];
@@ -146,6 +204,41 @@ function buildTwoInputGate(
     };
   });
 
+  const carry0 = buildCarrySchemaBranch({
+    prefix: 'c0',
+    seekY: 120,
+    writeTopY: 86,
+    writeBotY: 148,
+    loopAngleDeg: -90,
+    out0: r00,
+    out1: r10,
+    fromPickId: 'n_pickB',
+    pickLabel: '0',
+    retId: 'n_ret',
+  });
+  const carry1 = buildCarrySchemaBranch({
+    prefix: 'c1',
+    seekY: 275,
+    writeTopY: 242,
+    writeBotY: 304,
+    loopAngleDeg: 90,
+    out0: r01,
+    out1: r11,
+    fromPickId: 'n_pickB',
+    pickLabel: '1',
+    retId: 'n_ret',
+  });
+  const zeroReadSyms = [
+    'a',
+    ...(table[0] === 0 ? ['0'] : []),
+    ...(table[2] === 0 ? ['1'] : []),
+  ].join(', ');
+  const oneReadSyms = [
+    'b',
+    ...(table[0] === 1 ? ['0'] : []),
+    ...(table[2] === 1 ? ['1'] : []),
+  ].join(', ');
+
   const tableStr = `[00→${table[0]}, 01→${table[1]}, 10→${table[2]}, 11→${table[3]}]`;
   return {
     id: `compiled-logic-${op.toLowerCase()}-${Date.now().toString(36)}`,
@@ -166,24 +259,28 @@ function buildTwoInputGate(
     transitions,
     schemaDiagram: {
       title: `${meta.name} — L&P Schema`,
-      width: 630,
-      height: 380,
+      width: 715,
+      height: 585,
       nodes: [
-        { id: 'n_pickB', label: '> L', kind: 'start-action', x: 105, y: 175 },
-        { id: 'n_carry0', label: '# L_# L', kind: 'builtin', builtinId: 'L_hash', x: 310, y: 125 },
-        { id: 'n_carry1', label: '# L_# L', kind: 'builtin', builtinId: 'L_hash', x: 310, y: 230 },
-        { id: 'n_ret', label: 'R_# R_#', kind: 'builtin', builtinId: 'R_hash', x: 515, y: 175 },
-        { id: 'n_decode', label: 'a/b→0/1 L', kind: 'write', x: 105, y: 310 },
-        { id: 'n_halt', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 310, y: 310 },
+        { id: 'n_pickB', label: '> L', kind: 'start-action', x: 85, y: 195 },
+        ...carry0.nodes,
+        ...carry1.nodes,
+        { id: 'n_ret', label: 'R_# R_#', kind: 'builtin', builtinId: 'R_hash', x: 630, y: 195 },
+        { id: 'n_dec_L', label: 'L', kind: 'move', x: 85, y: 405 },
+        { id: 'n_dec_0', label: '0', kind: 'write', x: 265, y: 355 },
+        { id: 'n_dec_1', label: '1', kind: 'write', x: 265, y: 455 },
+        { id: 'n_halt', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 85, y: 530 },
       ],
       edges: [
-        { id: 'e_0', from: 'n_pickB', to: 'n_carry0', label: '0' },
-        { id: 'e_1', from: 'n_pickB', to: 'n_carry1', label: '1' },
-        { id: 'e_r0', from: 'n_carry0', to: 'n_ret', label: `${r00}/${r10}` },
-        { id: 'e_r1', from: 'n_carry1', to: 'n_ret', label: `${r01}/${r11}` },
-        { id: 'e_loop', from: 'n_ret', to: 'n_pickB', label: '#', curveOffset: -155 },
-        { id: 'e_fin', from: 'n_pickB', to: 'n_decode', label: '#' },
-        { id: 'e_end', from: 'n_decode', to: 'n_halt', label: '#' },
+        ...carry0.edges,
+        ...carry1.edges,
+        { id: 'e_loop', from: 'n_ret', to: 'n_pickB', label: '#', curveOffset: -175 },
+        { id: 'e_fin', from: 'n_pickB', to: 'n_dec_L', label: '#' },
+        { id: 'e_dec0', from: 'n_dec_L', to: 'n_dec_0', label: zeroReadSyms, curveOffset: -24 },
+        { id: 'e_dec0_ret', from: 'n_dec_0', to: 'n_dec_L', label: '', curveOffset: -24 },
+        { id: 'e_dec1', from: 'n_dec_L', to: 'n_dec_1', label: oneReadSyms, curveOffset: 24 },
+        { id: 'e_dec1_ret', from: 'n_dec_1', to: 'n_dec_L', label: '', curveOffset: 24 },
+        { id: 'e_end', from: 'n_dec_L', to: 'n_halt', label: '#' },
       ],
     },
     sampleInputs,
@@ -193,7 +290,7 @@ function buildTwoInputGate(
 
 function buildNot(): TuringMachineDefinition {
   const rawStates: StateNode[] = [
-    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_start' },
+    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_flip' },
     { id: 'q_flip', label: 'Flip 0↔1 ←', x: 0, y: 0, schemaNodeId: 'n_flip' },
     { id: 'q_end', label: 'To end →', x: 0, y: 0, schemaNodeId: 'n_end' },
     { id: 'qH', label: 'Halt', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_end' },
@@ -227,16 +324,19 @@ function buildNot(): TuringMachineDefinition {
     transitions,
     schemaDiagram: {
       title: 'Binary Bitwise NOT — L&P Schema',
-      width: 580,
-      height: 240,
+      width: 420,
+      height: 340,
       nodes: [
-        { id: 'n_start', label: '> L', kind: 'start-action', x: 115, y: 140 },
-        { id: 'n_flip', label: 'L', kind: 'move', x: 295, y: 140 },
-        { id: 'n_end', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 475, y: 140 },
+        { id: 'n_flip', label: '> L', kind: 'start-action', x: 115, y: 155 },
+        { id: 'n_w1', label: '1', kind: 'write', x: 305, y: 95 },
+        { id: 'n_w0', label: '0', kind: 'write', x: 305, y: 215 },
+        { id: 'n_end', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 115, y: 285 },
       ],
       edges: [
-        { id: 'e_s', from: 'n_start', to: 'n_flip', label: '#' },
-        { id: 'e_loop', from: 'n_flip', to: 'n_flip', label: '0↔1', isSelfLoop: true, loopAngleDeg: -90 },
+        { id: 'e_r0', from: 'n_flip', to: 'n_w1', label: '0', curveOffset: -22 },
+        { id: 'e_b1', from: 'n_w1', to: 'n_flip', label: '', curveOffset: -22 },
+        { id: 'e_r1', from: 'n_flip', to: 'n_w0', label: '1', curveOffset: 22 },
+        { id: 'e_b0', from: 'n_w0', to: 'n_flip', label: '', curveOffset: 22 },
         { id: 'e_end', from: 'n_flip', to: 'n_end', label: '#' },
       ],
     },
@@ -251,7 +351,7 @@ function buildNot(): TuringMachineDefinition {
 
 function buildInc(): TuringMachineDefinition {
   const rawStates: StateNode[] = [
-    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_start' },
+    { id: 'q0', label: 'Start', x: 0, y: 0, isStart: true, schemaNodeId: 'n_carry' },
     { id: 'q_carry', label: 'Carry +1 ←', x: 0, y: 0, schemaNodeId: 'n_carry' },
     { id: 'q_end', label: 'To end →', x: 0, y: 0, schemaNodeId: 'n_end' },
     { id: 'qH', label: 'Halt', x: 0, y: 0, isHalt: true, schemaNodeId: 'n_end' },
@@ -285,16 +385,16 @@ function buildInc(): TuringMachineDefinition {
     transitions,
     schemaDiagram: {
       title: 'Binary Increment (+1) — L&P Schema',
-      width: 600,
-      height: 240,
+      width: 420,
+      height: 290,
       nodes: [
-        { id: 'n_start', label: '> L', kind: 'start-action', x: 115, y: 140 },
-        { id: 'n_carry', label: '1→0 L', kind: 'write', x: 295, y: 140 },
-        { id: 'n_end', label: '1 R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 495, y: 140 },
+        { id: 'n_carry', label: '> L', kind: 'start-action', x: 115, y: 165 },
+        { id: 'n_w0', label: '0', kind: 'write', x: 300, y: 110 },
+        { id: 'n_end', label: '1 R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 300, y: 230 },
       ],
       edges: [
-        { id: 'e_s', from: 'n_start', to: 'n_carry', label: '#' },
-        { id: 'e_loop', from: 'n_carry', to: 'n_carry', label: '1', isSelfLoop: true, loopAngleDeg: -90 },
+        { id: 'e_1', from: 'n_carry', to: 'n_w0', label: '1', curveOffset: -24 },
+        { id: 'e_back', from: 'n_w0', to: 'n_carry', label: '', curveOffset: -24 },
         { id: 'e_end', from: 'n_carry', to: 'n_end', label: '0, #' },
       ],
     },
@@ -349,18 +449,23 @@ function buildTwosComp(): TuringMachineDefinition {
     transitions,
     schemaDiagram: {
       title: 'Binary Two’s Complement — L&P Schema',
-      width: 610,
-      height: 270,
+      width: 560,
+      height: 375,
       nodes: [
-        { id: 'n_skip0', label: '> L', kind: 'start-action', x: 115, y: 150 },
-        { id: 'n_flip', label: '0↔1 L', kind: 'write', x: 310, y: 150 },
-        { id: 'n_end', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 505, y: 150 },
+        { id: 'n_skip0', label: '> L', kind: 'start-action', x: 95, y: 175 },
+        { id: 'n_flip', label: 'L', kind: 'move', x: 280, y: 175 },
+        { id: 'n_w1', label: '1', kind: 'write', x: 465, y: 115 },
+        { id: 'n_w0', label: '0', kind: 'write', x: 465, y: 235 },
+        { id: 'n_end', label: 'R_#', sublabel: 'Halt', kind: 'halt', builtinId: 'R_hash', x: 280, y: 315 },
       ],
       edges: [
         { id: 'e_0', from: 'n_skip0', to: 'n_skip0', label: '0', isSelfLoop: true, loopAngleDeg: -90 },
         { id: 'e_1', from: 'n_skip0', to: 'n_flip', label: '1' },
-        { id: 'e_h0', from: 'n_skip0', to: 'n_end', label: '#', curveOffset: 64 },
-        { id: 'e_fl', from: 'n_flip', to: 'n_flip', label: '0↔1', isSelfLoop: true, loopAngleDeg: -90 },
+        { id: 'e_h0', from: 'n_skip0', to: 'n_end', label: '#' },
+        { id: 'e_f0', from: 'n_flip', to: 'n_w1', label: '0', curveOffset: -22 },
+        { id: 'e_b1', from: 'n_w1', to: 'n_flip', label: '', curveOffset: -22 },
+        { id: 'e_f1', from: 'n_flip', to: 'n_w0', label: '1', curveOffset: 22 },
+        { id: 'e_b0', from: 'n_w0', to: 'n_flip', label: '', curveOffset: 22 },
         { id: 'e_end', from: 'n_flip', to: 'n_end', label: '#' },
       ],
     },
